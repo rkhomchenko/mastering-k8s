@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+  namespace: kube-system
+spec:
+  hostNetwork: true
+  containers:
+    - name: kube-apiserver
+      image: registry.k8s.io/kube-apiserver:v1.30.0
+      command:
+        - kube-apiserver
+        - --etcd-servers=http://127.0.0.1:2379
+        - --service-cluster-ip-range=10.0.0.0/24
+        - --bind-address=0.0.0.0
+        - --secure-port=6443
+        - --advertise-address=127.0.0.1
+        - --authorization-mode=AlwaysAllow
+        - --token-auth-file=/etc/kubernetes/token.csv
+        - --enable-priority-and-fairness=false
+        - --allow-privileged=true
+        - --profiling=false
+        - --storage-backend=etcd3
+        - --storage-media-type=application/json
+        - --v=0
+        - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+        - --service-account-key-file=/etc/kubernetes/sa.pub
+        - --service-account-signing-key-file=/etc/kubernetes/sa.key
+      volumeMounts:
+        - name: config
+          mountPath: /etc/kubernetes
+  volumes:
+    - name: config
+      hostPath:
+        path: /tmp

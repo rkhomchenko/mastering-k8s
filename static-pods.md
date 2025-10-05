@@ -2,7 +2,7 @@
 
 This guide explains each command and step needed to manually build a Kubernetes control plane, based on the automation in `setup-amd64.sh`.
 
-## 1. Create Required Directories
+## Create Required Directories
 ```bash
 sudo mkdir -p ./kubebuilder/bin
 sudo mkdir -p /etc/cni/net.d
@@ -15,7 +15,7 @@ sudo mkdir -p /run/containerd
 sudo mkdir -p /opt/cni
 ```
 
-## 2. Download Core Components
+## Download Core Components
 ```bash
 # Download kubebuilder tools (includes etcd, kubectl, etc)
 curl -L https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.30.0-linux-amd64.tar.gz -o /tmp/kubebuilder-tools.tar.gz
@@ -28,7 +28,7 @@ sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kubelet" -o kubebuilder/
 sudo chmod 755 kubebuilder/bin/kubelet
 ```
 
-## 3. Install Container Runtime
+## Install Container Runtime
 ```bash
 # Download and install containerd
 wget https://github.com/containerd/containerd/releases/download/v2.0.5/containerd-static-2.0.5-linux-amd64.tar.gz -O /tmp/containerd.tar.gz
@@ -45,20 +45,15 @@ sudo tar zxf /tmp/cni-plugins.tgz -C /opt/cni/bin/
 rm /tmp/cni-plugins.tgz
 ```
 
-## 4. Download Additional Components
+## Set permissions
 ```bash
-# Download controller manager and scheduler
-sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-controller-manager" -o kubebuilder/bin/kube-controller-manager
-sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-scheduler" -o kubebuilder/bin/kube-scheduler
-sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/cloud-controller-manager" -o kubebuilder/bin/cloud-controller-manager
-
-# Set permissions
 sudo chmod 755 kubebuilder/bin/kube-controller-manager
 sudo chmod 755 kubebuilder/bin/kube-scheduler
 sudo chmod 755 kubebuilder/bin/cloud-controller-manager
 ```
 
-## 5. Generate Certificates and Tokens
+## Generate Certificates and Tokens
+
 ```bash
 # Generate service account key pair
 openssl genrsa -out /tmp/sa.key 2048
@@ -75,7 +70,7 @@ sudo cp /tmp/ca.crt /var/lib/kubelet/ca.crt
 sudo cp /tmp/ca.crt /var/lib/kubelet/pki/ca.crt
 ```
 
-## 6. Configure kubectl
+## Configure kubectl
 ```bash
 sudo kubebuilder/bin/kubectl config set-credentials test-user --token=1234567890
 sudo kubebuilder/bin/kubectl config set-cluster test-env --server=https://127.0.0.1:6443 --insecure-skip-tls-verify
@@ -83,7 +78,7 @@ sudo kubebuilder/bin/kubectl config set-context test-context --cluster=test-env 
 sudo kubebuilder/bin/kubectl config use-context test-context
 ```
 
-## 7. Configure CNI
+## Configure CNI
 Create `/etc/cni/net.d/10-mynet.conf`:
 ```json
 {
@@ -103,7 +98,7 @@ Create `/etc/cni/net.d/10-mynet.conf`:
 }
 ```
 
-## 8. Configure containerd
+## Configure containerd
 Create `/etc/containerd/config.toml`:
 ```toml
 version = 3
@@ -132,7 +127,7 @@ version = 3
   SystemdCgroup = false
 ```
 
-## 9. Configure kubelet
+## Configure kubelet
 Create `/var/lib/kubelet/config.yaml`:
 ```yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
@@ -156,63 +151,20 @@ seccompDefault: true
 serverTLSBootstrap: false
 containerRuntimeEndpoint: "unix:///run/containerd/containerd.sock"
 staticPodPath: "/etc/kubernetes/manifests"
-maxPods: 7
+maxPods: 7 
 ```
 
-## 10. Start Components
+## Start Components
 
 Get the host IP:
 ```bash
 HOST_IP=$(hostname -I | awk '{print $1}')
 ```
 
-### Start etcd:
-```bash
-sudo kubebuilder/bin/etcd \
-    --advertise-client-urls http://$HOST_IP:2379 \
-    --listen-client-urls http://0.0.0.0:2379 \
-    --data-dir ./etcd \
-    --listen-peer-urls http://0.0.0.0:2380 \
-    --initial-cluster default=http://$HOST_IP:2380 \
-    --initial-advertise-peer-urls http://$HOST_IP:2380 \
-    --initial-cluster-state new \
-    --initial-cluster-token test-token &
-```
-
-### Start kube-apiserver:
-```bash
-sudo kubebuilder/bin/kube-apiserver \
-    --etcd-servers=http://$HOST_IP:2379 \
-    --service-cluster-ip-range=10.0.0.0/24 \
-    --bind-address=0.0.0.0 \
-    --secure-port=6443 \
-    --advertise-address=$HOST_IP \
-    --authorization-mode=AlwaysAllow \
-    --token-auth-file=/tmp/token.csv \
-    --enable-priority-and-fairness=false \
-    --allow-privileged=true \
-    --profiling=false \
-    --storage-backend=etcd3 \
-    --storage-media-type=application/json \
-    --v=0 \
-    --service-account-issuer=https://kubernetes.default.svc.cluster.local \
-    --service-account-key-file=/tmp/sa.pub \
-    --service-account-signing-key-file=/tmp/sa.key &
-```
-
 ### Start containerd:
 ```bash
 export PATH=$PATH:/opt/cni/bin:kubebuilder/bin
 sudo PATH=$PATH:/opt/cni/bin:/usr/sbin /opt/cni/bin/containerd -c /etc/containerd/config.toml &
-```
-
-### Start kube-scheduler:
-```bash
-sudo kubebuilder/bin/kube-scheduler \
-    --kubeconfig=/root/.kube/config \
-    --leader-elect=false \
-    --v=2 \
-    --bind-address=0.0.0.0 &
 ```
 
 ### Prepare for kubelet:
@@ -238,29 +190,21 @@ sudo PATH=$PATH:/opt/cni/bin:/usr/sbin kubebuilder/bin/kubelet \
     --pod-infra-container-image=registry.k8s.io/pause:3.10 \
     --node-ip=$HOST_IP \
     --cgroup-driver=cgroupfs \
+    --max-pods=7
     --v=1 &
 ```
 
-### Label the node:
+### Copy Static Pod Manifests
+
+Copy your static pod manifest files from the local `./manifests` directory to the Kubernetes manifests directory:
+
 ```bash
-NODE_NAME=$(hostname)
-sudo kubebuilder/bin/kubectl label node "$NODE_NAME" node-role.kubernetes.io/master="" --overwrite
+sudo cp ./manifests/* /etc/kubernetes/manifests/
 ```
 
-### Start kube-controller-manager:
-```bash
-sudo PATH=$PATH:/opt/cni/bin:/usr/sbin kubebuilder/bin/kube-controller-manager \
-    --kubeconfig=/var/lib/kubelet/kubeconfig \
-    --leader-elect=false \
-    --service-cluster-ip-range=10.0.0.0/24 \
-    --cluster-name=kubernetes \
-    --root-ca-file=/var/lib/kubelet/ca.crt \
-    --service-account-private-key-file=/tmp/sa.key \
-    --use-service-account-credentials=true \
-    --v=2 &
-```
+This will ensure that kubelet automatically detects and starts the static pods defined in those manifests.
 
-## 11. Verify Setup
+## Verify Setup
 ```bash
 # Check node status
 sudo kubebuilder/bin/kubectl get nodes
@@ -291,11 +235,7 @@ sudo kubebuilder/bin/kubectl get all -A
 3. Generate certificates/tokens
 4. Configure networking (CNI)
 5. Configure container runtime (containerd)
-6. Configure kubelet
-7. Start etcd (data store)
-8. Start API server
-9. Start containerd
-10. Start scheduler
-11. Start kubelet
-12. Start controller manager
-13. Verify setup
+6. Start containerd
+7. Configure kubelet
+8. Start kubelet
+9. Verify setup
