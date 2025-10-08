@@ -1,0 +1,1 @@
+ok  	github.com/mastering-k8s/new-controller/test	8.079s

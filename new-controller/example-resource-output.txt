@@ -1,0 +1,16 @@
+apiVersion: apps.newresource.com/v1alpha1
+kind: NewResource
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps.newresource.com/v1alpha1","kind":"NewResource","metadata":{"annotations":{},"name":"example-resource","namespace":"default"},"spec":{"foo":"hello world"}}
+  creationTimestamp: "2025-10-08T14:53:14Z"
+  generation: 1
+  name: example-resource
+  namespace: default
+  resourceVersion: "1719"
+  uid: 0b078d71-1d7f-4e26-857a-e581db839ab2
+spec:
+  foo: hello world
+status:
+  ready: true

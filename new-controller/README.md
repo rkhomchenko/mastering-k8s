@@ -268,6 +268,19 @@ You should see `status.ready: true` in the output.
 KUBEBUILDER_ASSETS="<PATH_TO_TESTENV_BIN>" go test ./...
 ```
 
+### Getting metrics
+Run the following command while running the controller:
+
+```bash
+curl http://localhost:8080/metrics > metrics.txt
+```
+
+Metrics port is configured here:
+```go
+flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+
+```
+
 ### Generating CRDs
 
 If you modify the API types, regenerate the CRD:
