@@ -12,11 +12,6 @@ is_running() {
 
 # Function to check if all components are running
 check_running() {
-    is_running "etcd" && \
-    is_running "kube-apiserver" && \
-    is_running "kube-controller-manager" && \
-    is_running "cloud-controller-manager" && \
-    is_running "kube-scheduler" && \
     is_running "kubelet" && \
     is_running "containerd"
 }
@@ -42,14 +37,14 @@ download_components() {
     sudo mkdir -p /etc/containerd/
     sudo mkdir -p /run/containerd
 
-    # Download kubebuilder tools if not present
-    if [ ! -f "kubebuilder/bin/etcd" ]; then
-        echo "Downloading kubebuilder tools..."
-        curl -L https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.30.0-linux-amd64.tar.gz -o /tmp/kubebuilder-tools.tar.gz
-        sudo tar -C ./kubebuilder --strip-components=1 -zxf /tmp/kubebuilder-tools.tar.gz
-        rm /tmp/kubebuilder-tools.tar.gz
-        sudo chmod -R 755 ./kubebuilder/bin
-    fi
+    # # Download kubebuilder tools if not present
+    # if [ ! -f "kubebuilder/bin/etcd" ]; then
+    #     echo "Downloading kubebuilder tools..."
+    #     curl -L https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.30.0-linux-amd64.tar.gz -o /tmp/kubebuilder-tools.tar.gz
+    #     sudo tar -C ./kubebuilder --strip-components=1 -zxf /tmp/kubebuilder-tools.tar.gz
+    #     rm /tmp/kubebuilder-tools.tar.gz
+    #     sudo chmod -R 755 ./kubebuilder/bin
+    # fi
 
     if [ ! -f "kubebuilder/bin/kubelet" ]; then
         echo "Downloading kubelet..."
@@ -78,15 +73,15 @@ download_components() {
         sudo chmod -R 755 /opt/cni
     fi
 
-    if [ ! -f "kubebuilder/bin/kube-controller-manager" ]; then
-        echo "Downloading additional components..."
-        sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-controller-manager" -o kubebuilder/bin/kube-controller-manager
-        sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-scheduler" -o kubebuilder/bin/kube-scheduler
-        sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/cloud-controller-manager" -o kubebuilder/bin/cloud-controller-manager
-        sudo chmod 755 kubebuilder/bin/kube-controller-manager
-        sudo chmod 755 kubebuilder/bin/kube-scheduler
-        sudo chmod 755 kubebuilder/bin/cloud-controller-manager
-    fi
+    # if [ ! -f "kubebuilder/bin/kube-controller-manager" ]; then
+    #     echo "Downloading additional components..."
+    #     sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-controller-manager" -o kubebuilder/bin/kube-controller-manager
+    #     sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-scheduler" -o kubebuilder/bin/kube-scheduler
+    #     sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/cloud-controller-manager" -o kubebuilder/bin/cloud-controller-manager
+    #     sudo chmod 755 kubebuilder/bin/kube-controller-manager
+    #     sudo chmod 755 kubebuilder/bin/kube-scheduler
+    #     sudo chmod 755 kubebuilder/bin/cloud-controller-manager
+    # fi
 }
 
 setup_configs() {
@@ -191,6 +186,7 @@ seccompDefault: true
 serverTLSBootstrap: false
 containerRuntimeEndpoint: "unix:///run/containerd/containerd.sock"
 staticPodPath: "/etc/kubernetes/manifests"
+maxPods: 7
 EOF
 
     # Create required directories with proper permissions
@@ -218,6 +214,43 @@ EOF
     fi
 }
 
+#Copy manifest files to /etc/kubernetes/manifests
+copy_manifests() {
+    echo "Copying control plane manifests to /etc/kubernetes/manifests..."
+    
+    # Copy all manifest files from the manifests directory
+    if [ -d "manifests" ]; then
+        sudo cp manifests/*.yaml /etc/kubernetes/manifests/
+        echo "Copied manifests:"
+        ls -la /etc/kubernetes/manifests/
+    else
+        echo "Warning: manifests directory not found. Control plane components will not be started as static pods."
+    fi
+}
+
+# Function to safely unmount containerd mount points
+unmount_containerd() {
+    echo "Unmounting containerd mount points..."
+    
+    # Unmount shared memory mount points
+    if mount | grep -q "/run/containerd.*shm"; then
+        echo "Unmounting shared memory mount points..."
+        sudo umount /run/containerd/io.containerd.grpc.v1.cri/sandboxes/*/shm 2>/dev/null || true
+    fi
+    
+    # Unmount overlay filesystem mount points
+    if mount | grep -q "overlay on /run/containerd"; then
+        echo "Unmounting overlay filesystem mount points..."
+        for mount_point in $(mount | grep "overlay on /run/containerd" | awk '{print $3}'); do
+            sudo umount "$mount_point" 2>/dev/null || true
+        done
+    fi
+    
+    # Wait a moment for resources to be released
+    sleep 2
+    echo "Unmount completed"
+}
+
 start() {
     if check_running; then
         echo "Kubernetes components are already running"
@@ -232,41 +265,41 @@ start() {
     # Setup configurations
     setup_configs
 
-    # Start components if not running
-    if ! is_running "etcd"; then
-        echo "Starting etcd..."
-        sudo kubebuilder/bin/etcd \
-            --advertise-client-urls http://$HOST_IP:2379 \
-            --listen-client-urls http://0.0.0.0:2379 \
-            --data-dir ./etcd \
-            --listen-peer-urls http://0.0.0.0:2380 \
-            --initial-cluster default=http://$HOST_IP:2380 \
-            --initial-advertise-peer-urls http://$HOST_IP:2380 \
-            --initial-cluster-state new \
-            --initial-cluster-token test-token &
-    fi
+    # # Start components if not running
+    # if ! is_running "etcd"; then
+    #     echo "Starting etcd..."
+    #     sudo kubebuilder/bin/etcd \
+    #         --advertise-client-urls http://$HOST_IP:2379 \
+    #         --listen-client-urls http://0.0.0.0:2379 \
+    #         --data-dir ./etcd \
+    #         --listen-peer-urls http://0.0.0.0:2380 \
+    #         --initial-cluster default=http://$HOST_IP:2380 \
+    #         --initial-advertise-peer-urls http://$HOST_IP:2380 \
+    #         --initial-cluster-state new \
+    #         --initial-cluster-token test-token &
+    # fi
 
-    if ! is_running "kube-apiserver"; then
-        echo "Starting kube-apiserver..."
-        echo "use application/vnd.kubernetes.protobuf for better performance"
-        sudo kubebuilder/bin/kube-apiserver \
-            --etcd-servers=http://$HOST_IP:2379 \
-            --service-cluster-ip-range=10.0.0.0/24 \
-            --bind-address=0.0.0.0 \
-            --secure-port=6443 \
-            --advertise-address=$HOST_IP \
-            --authorization-mode=AlwaysAllow \
-            --token-auth-file=/tmp/token.csv \
-            --enable-priority-and-fairness=false \
-            --allow-privileged=true \
-            --profiling=false \
-            --storage-backend=etcd3 \
-            --storage-media-type=application/json \
-            --v=0 \
-            --service-account-issuer=https://kubernetes.default.svc.cluster.local \
-            --service-account-key-file=/tmp/sa.pub \
-            --service-account-signing-key-file=/tmp/sa.key &
-    fi
+    # if ! is_running "kube-apiserver"; then
+    #     echo "Starting kube-apiserver..."
+    #     echo "use application/vnd.kubernetes.protobuf for better performance"
+    #     sudo kubebuilder/bin/kube-apiserver \
+    #         --etcd-servers=http://$HOST_IP:2379 \
+    #         --service-cluster-ip-range=10.0.0.0/24 \
+    #         --bind-address=0.0.0.0 \
+    #         --secure-port=6443 \
+    #         --advertise-address=$HOST_IP \
+    #         --authorization-mode=AlwaysAllow \
+    #         --token-auth-file=/tmp/token.csv \
+    #         --enable-priority-and-fairness=false \
+    #         --allow-privileged=true \
+    #         --profiling=false \
+    #         --storage-backend=etcd3 \
+    #         --storage-media-type=application/json \
+    #         --v=0 \
+    #         --service-account-issuer=https://kubernetes.default.svc.cluster.local \
+    #         --service-account-key-file=/tmp/sa.pub \
+    #         --service-account-signing-key-file=/tmp/sa.key &
+    # fi
 
     if ! is_running "containerd"; then
         echo "Starting containerd..."
@@ -274,14 +307,14 @@ start() {
         sudo PATH=$PATH:/opt/cni/bin:/usr/sbin /opt/cni/bin/containerd -c /etc/containerd/config.toml &
     fi
 
-    if ! is_running "kube-scheduler"; then
-        echo "Starting kube-scheduler..."
-        sudo kubebuilder/bin/kube-scheduler \
-            --kubeconfig=/root/.kube/config \
-            --leader-elect=false \
-            --v=2 \
-            --bind-address=0.0.0.0 &
-    fi
+    # if ! is_running "kube-scheduler"; then
+    #     echo "Starting kube-scheduler..."
+    #     sudo kubebuilder/bin/kube-scheduler \
+    #         --kubeconfig=/root/.kube/config \
+    #         --leader-elect=false \
+    #         --v=2 \
+    #         --bind-address=0.0.0.0 &
+    # fi
 
     # Set up kubelet kubeconfig
     sudo cp /root/.kube/config /var/lib/kubelet/kubeconfig
@@ -291,7 +324,6 @@ start() {
     # Create service account and configmap if they don't exist
     sudo kubebuilder/bin/kubectl create sa default 2>/dev/null || true
     sudo kubebuilder/bin/kubectl create configmap kube-root-ca.crt --from-file=ca.crt=/tmp/ca.crt -n default 2>/dev/null || true
-
 
     if ! is_running "kubelet"; then
         echo "Starting kubelet..."
@@ -311,24 +343,28 @@ start() {
     fi
 
     # Label the node so static pods with nodeSelector can be scheduled
-    NODE_NAME=$(hostname)
-    sudo kubebuilder/bin/kubectl label node "$NODE_NAME" node-role.kubernetes.io/master="" --overwrite || true
+    # NODE_NAME=$(hostname)
+    # sudo kubebuilder/bin/kubectl label node "$NODE_NAME" node-role.kubernetes.io/master="" --overwrite || true
 
-    if ! is_running "kube-controller-manager"; then
-        echo "Starting kube-controller-manager..."
-        sudo PATH=$PATH:/opt/cni/bin:/usr/sbin kubebuilder/bin/kube-controller-manager \
-            --kubeconfig=/var/lib/kubelet/kubeconfig \
-            --leader-elect=false \
-            --service-cluster-ip-range=10.0.0.0/24 \
-            --cluster-name=kubernetes \
-            --root-ca-file=/var/lib/kubelet/ca.crt \
-            --service-account-private-key-file=/tmp/sa.key \
-            --use-service-account-credentials=true \
-            --v=2 &
-    fi
+    # if ! is_running "kube-controller-manager"; then
+    #     echo "Starting kube-controller-manager..."
+    #     sudo PATH=$PATH:/opt/cni/bin:/usr/sbin kubebuilder/bin/kube-controller-manager \
+    #         --kubeconfig=/var/lib/kubelet/kubeconfig \
+    #         --leader-elect=false \
+    #         --service-cluster-ip-range=10.0.0.0/24 \
+    #         --cluster-name=kubernetes \
+    #         --root-ca-file=/var/lib/kubelet/ca.crt \
+    #         --service-account-private-key-file=/tmp/sa.key \
+    #         --use-service-account-credentials=true \
+    #         --v=2 &
+    # fi
 
     echo "Waiting for components to be ready..."
     sleep 10
+
+    copy_manifests
+    echo "Waiting for static pods to be ready..."
+    sleep 30
 
     echo "Verifying setup..."
     sudo kubebuilder/bin/kubectl get nodes
@@ -339,14 +375,14 @@ start() {
 
 stop() {
     echo "Stopping Kubernetes components..."
-    stop_process "cloud-controller-manager"
-    stop_process "gce_metadata_server"
-    stop_process "kube-controller-manager"
+    # stop_process "cloud-controller-manager"
+    # stop_process "gce_metadata_server"
+    # stop_process "kube-controller-manager"
     stop_process "kubelet"
-    stop_process "kube-scheduler"
-    stop_process "kube-apiserver"
+    # stop_process "kube-scheduler"
+    # stop_process "kube-apiserver"
     stop_process "containerd"
-    stop_process "etcd"
+    # stop_process "etcd"
     echo "All components stopped"
 }
 
@@ -355,6 +391,7 @@ cleanup() {
     echo "Cleaning up..."
     sudo rm -rf ./etcd
     sudo rm -rf /var/lib/kubelet/*
+    unmount_containerd
     sudo rm -rf /run/containerd/*
     sudo rm -f /tmp/sa.key /tmp/sa.pub /tmp/token.csv /tmp/ca.key /tmp/ca.crt
     echo "Cleanup complete"
