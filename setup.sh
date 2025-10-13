@@ -306,7 +306,7 @@ start() {
             --pod-infra-container-image=registry.k8s.io/pause:3.10 \
             --node-ip=$HOST_IP \
             --cgroup-driver=cgroupfs \
-            --max-pods=4  \
+            --max-pods=7  \
             --v=1 &
     fi
 
