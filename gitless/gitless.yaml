@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 5m0s
-  url: oci://ghcr.io/den-vasyliev/flux-gitops-dev
+  url: oci://ghcr.io/rkhomchenko/flux-gitops-dev
   ref:
     semver: ">= 0.0.x-0"
   secretRef:

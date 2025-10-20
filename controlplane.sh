@@ -34,8 +34,8 @@ stop_process() {
 start() {
 
 # Source other scripts
-# source ./download.sh
-# source ./pki.sh
+source ./download.sh
+source ./pki.sh
 
 # Get the host IP address
 HOST_IP=$(hostname -I | awk '{print $1}')
@@ -181,12 +181,7 @@ EOF
 sudo kubebuilder/bin/kubectl -n kube-system create configmap extension-apiserver-authentication \
   --from-file=client-ca-file=/etc/kubernetes/pki/ca.crt \
   --from-file=requestheader-client-ca-file=/etc/kubernetes/pki/ca.crt \
-  --dry-run=client -o yaml | kubebuilder/bin/kubectl apply -f -
-
-
-    # Label the node so static pods with nodeSelector can be scheduled
-    NODE_NAME=$(hostname)
-    sudo kubebuilder/bin/kubectl label node "$NODE_NAME" node-role.kubernetes.io/master="" --overwrite || true
+  --dry-run=client -o yaml | sudo kubebuilder/bin/kubectl apply -f -
 
     if ! is_running "kube-controller-manager"; then
         echo "Starting kube-controller-manager..."
@@ -232,10 +227,6 @@ clientConnection:
 mode: "iptables"
 clusterCIDR: "${POD_CIDR}"
 EOF
-     if ! is_running "kube-proxy"; then
-    echo "Starting kube-proxy..."
-    sudo kubebuilder/bin/kube-proxy --config=/tmp/kube-proxy.conf.yml --proxy-mode=iptables&
-    fi
     
     # Create required directories with proper permissions
     sudo mkdir -p /var/lib/kubelet/pods
@@ -256,6 +247,15 @@ EOF
         --hostname-override=$(hostname) \
         --node-ip=$HOST_IP \
         --v=0 &
+
+    # Label the node so static pods with nodeSelector can be scheduled
+    NODE_NAME=$(hostname)
+    sudo kubebuilder/bin/kubectl label node "$NODE_NAME" node-role.kubernetes.io/master="" --overwrite || true
+
+    if ! is_running "kube-proxy"; then
+      echo "Starting kube-proxy..."
+      sudo kubebuilder/bin/kube-proxy --config=/tmp/kube-proxy.conf.yml --proxy-mode=iptables &
+    fi
 
     # Wait for all components to be running
     for i in {1..30}; do
@@ -290,7 +290,7 @@ cleanup() {
     stop
     echo "Cleaning up..."
     sudo rm -rf ./etcd
-    sudo rm -rf /var/lib/kubelet/*
+    # sudo rm -rf /var/lib/kubelet/*
     sudo rm -rf /run/containerd/*
     sudo rm -f /tmp/sa.key /tmp/sa.pub /tmp/token.csv /tmp/ca.key /tmp/ca.crt
     echo "Cleanup complete"

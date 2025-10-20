@@ -27,7 +27,7 @@ spec:
     domain: "cluster.local"
   # sync:
   #   kind: GitRepository
-  #   url: "https://github.com/den-vasyliev/flux-gitops-dev.git"
+  #   url: "https://github.com/rkhomchenko/flux-gitops-dev.git"
   #   ref: "refs/heads/main"
   #   path: "clusters/demo"
   #   pullSecret: "github-auth"
@@ -38,6 +38,6 @@ spec:
 #   -n flux-system
 # kubectl create secret docker-registry ghcr-auth \
 #   --docker-server=ghcr.io \
-#   --docker-username=den-vasyliev \
+#   --docker-username=rkhomchenko \
 #   --docker-password=${GITHUB_TOKEN} \
 #   -n flux-system

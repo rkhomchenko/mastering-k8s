@@ -1,5 +1,7 @@
 # Install fluxcd
-helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --namespace flux-system --create-namespace
+sudo helm upgrade --install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --namespace flux-system --create-namespace
+# Install coredns
+sudo helm upgrade --install coredns coredns/coredns -n kube-system --set service.clusterIP=10.10.0.53 --set serviceAccount.create=true
 # flux instance
 k apply -f flux-instance.yml
 # envoy gateway
@@ -16,7 +18,7 @@ kubectl create secret generic github-auth \
 # flux image registry secret
 kubectl create secret docker-registry ghcr-auth \
   --docker-server=ghcr.io \
-  --docker-username=den-vasyliev \
+  --docker-username=rkhomchenko \
   --docker-password=${GITHUB_TOKEN} \
   -n flux-system
 # Install gitops stack

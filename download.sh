@@ -58,6 +58,12 @@ download_components() {
         sudo chmod 755 kubebuilder/bin/kube-scheduler
         sudo chmod 755 kubebuilder/bin/cloud-controller-manager
     fi
+
+    if [ ! -f "kubebuilder/bin/kube-proxy" ]; then
+            echo "Downloading kube-proxy..."
+            sudo curl -L "https://dl.k8s.io/v1.30.0/bin/linux/amd64/kube-proxy" -o kubebuilder/bin/kube-proxy
+            sudo chmod 755 kubebuilder/bin/kube-proxy
+    fi
 }
 
 download_components
