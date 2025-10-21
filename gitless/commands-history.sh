@@ -5,18 +5,18 @@ sudo helm upgrade --install coredns coredns/coredns -n kube-system --set service
 # flux instance
 k apply -f flux-instance.yml
 # envoy gateway
-helm install envoy-gateway oci://docker.io/envoyproxy/gateway-helm --version v1.3.2 --namespace envoy-gateway-system --create-namespace
+sudo helm install envoy-gateway oci://docker.io/envoyproxy/gateway-helm --version v1.3.2 --namespace envoy-gateway-system --create-namespace
 # envoy gateway config
 k apply -f gateway.yml 
 # flux github token secret
-read -s -GITHUB_TOKEN?"Enter GitHub token: "
+read -s -p "Enter GitHub token: " GITHUB_TOKEN
 # 
-kubectl create secret generic github-auth \
+k create secret generic github-auth \
   --from-literal=username=git \
   --from-literal=password=${GITHUB_TOKEN} \
   -n flux-system
 # flux image registry secret
-kubectl create secret docker-registry ghcr-auth \
+k create secret docker-registry ghcr-auth \
   --docker-server=ghcr.io \
   --docker-username=rkhomchenko \
   --docker-password=${GITHUB_TOKEN} \
