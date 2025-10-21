@@ -108,7 +108,7 @@ Generate deep copy methods and CRDs:
 
 ```bash
 # Initialize Go module
-go mod init github.com/den-vasyliev/mastering-k8s/new-controller
+go mod init github.com/rkhomchenko/mastering-k8s/new-controller
 
 # Build the controller
 go mod tidy
@@ -139,8 +139,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	newv1 "github.com/den-vasyliev/new-controller/api/v1alpha1"
-	"github.com/den-vasyliev/new-controller/controllers"
+	newv1 "github.com/rkhomchenko/new-controller/api/v1alpha1"
+	"github.com/rkhomchenko/new-controller/controllers"
 )
 
 func main() {
@@ -190,7 +190,7 @@ package controllers
 
 import (
 	"context"
-	newv1 "github.com/den-vasyliev/new-controller/api/v1alpha1"
+	newv1 "github.com/rkhomchenko/new-controller/api/v1alpha1"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

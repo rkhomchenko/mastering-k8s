@@ -7,7 +7,7 @@ metadata:
     fluxcd.controlplane.io/reconcileEvery: "1m"
 spec:
   type: OCIArtifactTag
-  url: oci://ghcr.io/den-vasyliev/kbot-src
+  url: oci://ghcr.io/rkhomchenko/kbot-src
   filter:
     semver: ">=2.2.x-0"
     limit: 1
@@ -33,7 +33,7 @@ spec:
         namespace: flux-system
       spec:
         interval: 1m
-        url: "oci://ghcr.io/den-vasyliev/charts/kbot"
+        url: "oci://ghcr.io/rkhomchenko/charts/kbot"
         ref:
           semver: ">2.2.0"
     - apiVersion: helm.toolkit.fluxcd.io/v2
@@ -52,5 +52,5 @@ spec:
         postRenderers:
           - kustomize:            
               images:
-                - name: ghcr.io/den-vasyliev/kbot-src
+                - name: ghcr.io/rkhomchenko/kbot-src
                   newTag: << inputs.kbotoci.tag | quote >>
